@@ -1,0 +1,50 @@
+Parameter list
+--------------
+
+The param class should have the following parameters as members:
+    Tau_slow
+    Tau_fast
+    tauG
+    deltaG
+    NSMAX
+    NFMAX
+    pRefS
+    pRefF
+    nuMF_mean
+    nuMF_sd
+
+We will use two vescicle pools, one is typically fast and the other slow with
+time constants (same for all MF tipes)
+    
+Tau_slow=2.0		
+Tau_fast=20.0/1000.0
+
+// desensitization time scale and gain (will see if we want to use it)
+tauG=100.0/1000.0
+deltaG=0.1
+
+All the other parameters depend on the MF class. Here we assume we have two
+classes called drivers [D] and supporters [S]
+
+For the driver class we have
+
+NSMAX=3.5  // N max in the driver slow pool 
+pS0=0.8 // Initial release probability of the driver slow pool
+pRefS=0.6 // recovery probability of the driver slow pool
+
+NFMAX=14 // same as the 3 lines above but for the fast pool
+pF0=0.6
+pRefF=0
+
+
+for the supporter type of MF we have
+
+NSMAX=4  
+pS0=0.4
+pRefS=0.6
+
+NFMAX=6
+pF0=0.2
+pRefF=0
+
+
