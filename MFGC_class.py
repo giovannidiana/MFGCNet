@@ -9,6 +9,28 @@ from matplotlib import pyplot as plt
 
 random.seed( 1 )
 
+DELTAT = 0.001
+NSTEPS = 1000
+
+class param:
+    def  __init__(type):
+        self.pS0=
+
+
+paramlist = [param(1), param(2)]
+
+class GranuleCell:
+    def __init__(self,mflist):
+        self.MF = mflist
+        self.response = np.zeros(NSTEPS,dtype=np.float)
+        self.synapses = []
+        for i in np.arange(4):
+            self.synapses.append(Synapse(mflist[i]))
+
+class Synapse:
+    def __init__(self,T):
+        self.X = np.zeros(shape=[2,NSTEPS],dtype=np.float)
+        self.P = np.zeros(shape=[2,NSTEPS],dtype=np.float)
 
 class MFGC:
     def __init__(self, nMF, nGC, MFTYPES):
