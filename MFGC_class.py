@@ -14,7 +14,17 @@ NSTEPS = 1000
 
 class param:
     def  __init__(type):
-        self.pS0=
+        if(type == 1):
+            self.pS0
+            
+    def SteadyState(self):
+        pass
+
+
+param = param(1)
+x, p = par.SteadyState()
+
+
 
 
 paramlist = [param(1), param(2)]
