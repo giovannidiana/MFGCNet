@@ -5,11 +5,13 @@ from matplotlib import pyplot as plt
 
 random.seed(1)
 
-DELTAT = 0.01
+DELTAT = 0.001
 NSTEPS = 1000
-Tau_fast = 20.0 / 1000.0
-Tau_slow = 2.0
-tauF = 15.0/1000
+Tau_fast = 20.0 / 1000.0 # recovery time scale of the fast pool
+Tau_slow = 2.0           # recovery time scale of the slow pool
+TauF = 15.0/1000         # facilitation time scale
+TauG = 10.0/1000         # granule cell response time scale
+
 
 
 class Param:
@@ -27,7 +29,8 @@ class Param:
             self.pF0 = 0.6
             self.pRefF = 0
             self.DELTAFF = self.pF0
-            self.Vmf = 200
+
+            self.nuMF_mean = 200
 
         elif self.type == 2:
             #supporter type
@@ -41,13 +44,10 @@ class Param:
             self.pF0 = 0.2
             self.pRefF = 0
             self.DELTAFF = self.pF0
-            self.Vmf = 20
+
+            self.nuMF_mean = 20
 
     def SteadyState(self):
-            self.XiFast =((self.DELTAFF*self.Vmf*tauF+1)/((self.DELTAFF*self.Vmf**2*tauF*Tau_fast)+(self.DELTAFF*self.Vmf*tauF)+(self.Vmf*self.pF0*tauF)+1))
-            self.XiSlow =((self.DELTAFS*self.Vmf*tauF+1)/((self.DELTAFS*self.Vmf**2*tauF*Tau_slow)+(self.DELTAFS*self.Vmf*tauF)+(self.Vmf*self.pS0*tauF)+1))
-            self.PiFast =((self.pF0+self.DELTAFF*tauF*self.Vmf)/(1+self.DELTAFF*tauF*self.Vmf))
-            self.PiSlow =((self.pS0+self.DELTAFS*tauF*self.Vmf)/(1+self.DELTAFS*tauF*self.Vmf))
 
 
 Parameter1 = Param(1)
@@ -63,15 +63,33 @@ class GranuleCell:
         for i in np.arange(4):
             self.synapses.append(Synapse(mflist[i]))
 
-    def set_gain_and_threshold(self):
-        pass
+class SynapseLayer:
+    def __init__(self, size): #size should be 4xGC
 
+        self.size = size
+        # X and P are 3D arrays. The first index is the fast/slow pool index
+        self.X = np.zeros(shape=[2,size, NSTEPS], dtype=np.float)
+        self.P = np.zeros(shape=[2,size, NSTEPS], dtype=np.float)
+        self.set_types()
+        self.nuMF = np.zeros(shape=size,dtype=np.float)
 
-class Synapse:
-    def __init__(self, T):
-        self.X = np.zeros(shape=[2, NSTEPS], dtype=np.float)
-        self.P = np.zeros(shape=[2, NSTEPS], dtype=np.float)
-        self.type = T
+    def set_types(self):
+        self.types=np.random.choice(2,size=self.size)
+
+    def steady_state(self):
+
+        self.X_ss_f =((self.DELTAFF*self.Vmf*TauF+1)/((self.DELTAFF*self.Vmf**2*TauF*Tau_fast)+(self.DELTAFF*self.Vmf*TauF)+(self.Vmf*self.pF0*TauF)+1))
+        self.X_ss_s =((self.DELTAFS*self.Vmf*TauF+1)/((self.DELTAFS*self.Vmf**2*TauF*Tau_slow)+(self.DELTAFS*self.Vmf*TauF)+(self.Vmf*self.pS0*TauF)+1))
+        self.P_ss_f =((self.pF0+self.DELTAFF*TauF*self.Vmf)/(1+self.DELTAFF*TauF*self.Vmf))
+        self.P_ss_s =((self.pS0+self.DELTAFS*TauF*self.Vmf)/(1+self.DELTAFS*TauF*self.Vmf))
+
+    def generate_MF_rates(self):
+        t0 = (self.types==0)
+        self.nuMF[t0] = np.random.gamma(10,parameters[0].nuMF_mean/10,size=np.sum(t0))
+        
+        t1 = (self.types==1)
+        self.nuMF[t1] = np.random.gamma(10,parameters[0].nuMF_mean/10,size=np.sum(t1))
+        
 
 
 class MFGC:
@@ -87,7 +105,7 @@ class MFGC:
             labelMFDict.update({loopMF: np.random.choice(self.MFTYPES)})
 
         print(labelMFDict)
-       
+
         self.wire()
 
     def wire(self):
@@ -96,6 +114,10 @@ class MFGC:
         # print(self.connectionArray)
 
         # self.connectionArray=np.random.choice(np.arange(nMF),size=(nGC,4),replace=True)
+
+    ## Setting threshold and gain for all GC
+    def set_gain_and_threshold(self):
+        pass
 
     def display(self):
         G = nx.Graph()
