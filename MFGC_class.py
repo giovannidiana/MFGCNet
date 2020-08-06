@@ -65,8 +65,7 @@ class GCLayer:
     def __init__(self, nGC):
         self.response = np.zeros([nGC,NSTEPS])
         self.threshold = np.zeros(nGC)
-        self.gain = np.zeros(nGC)
-
+        self.gain = np.full(nGC,1)
 
 class SynapseLayer:
     def __init__(self, size, synapse_type_vec): #size should be 4xGC
@@ -87,18 +86,15 @@ class SynapseLayer:
         self.SS[t0,:] = parameters[0].steady_state(self.nuMF[t0])
         self.SS[t1,:] = parameters[1].steady_state(self.nuMF[t1])
 
-    def generate_MF_rates(self):
-        t0 = (self.types==0)
-        t1 = (self.types==1)
-
-        self.nuMF[t0] = np.random.gamma(10,parameters[0].nuMF_mean/10,size=np.sum(t0))
-        self.nuMF[t1] = np.random.gamma(10,parameters[0].nuMF_mean/10,size=np.sum(t1))
-
     def combine_SS_input(self):
         nmax_fast = np.array([parameters[0].NFMAX,parameters[1].NFMAX])[self.types]
         nmax_slow = np.array([parameters[0].NSMAX,parameters[1].NSMAX])[self.types]
         npxq=(self.SS[:,0]*self.SS[:,2]*nmax_fast+self.SS[:,1]*self.SS[:,3]*nmax_slow)*Q0
         return(np.sum(np.reshape(npxq,[int(self.size/4),4]),1))
+
+    def integrate(self,pattern): # pattern is the array of MF firing rates
+
+
 
 class MFGC:
     def __init__(self, nMF, nGC, MFTYPES):
@@ -107,12 +103,22 @@ class MFGC:
         self.connectionArray = np.zeros(shape=[nGC, 4], dtype=int)
         self.synapse_type_vec = np.zeros(nGC*4,dtype=int)
         self.mf_type_vec = np.random.choice(np.arange(MFTYPES),size=nMF)
+        self.nuMF = np.zeros(nMF)
 
         self.wire()
         self.SL = SynapseLayer(4*nGC,self.synapse_type_vec)
         self.GCL = GCLayer(nGC)
         self.set_gain_and_threshold(1000)
 
+    def generate_pattern(self):
+        t0 = (self.mf_type_vec==0)
+        t1 = (self.mf_type_vec==1)
+
+        self.nuMF[t0] = np.random.gamma(10,parameters[0].nuMF_mean/10,size=np.sum(t0))
+        self.nuMF[t1] = np.random.gamma(10,parameters[1].nuMF_mean/10,size=np.sum(t1))
+
+        for gc in np.arange(self.nGC):
+            self.SL.nuMF[gc*4+np.arange(4)]=self.nuMF[self.connectionArray[gc]]
 
     def wire(self):
         for gc in np.arange(self.nGC):
@@ -123,12 +129,15 @@ class MFGC:
     def set_gain_and_threshold(self,nsamples):
         sample_input_to_GC = np.zeros(shape=[self.nGC,nsamples])
         for i in np.arange(nsamples):
-            self.SL.generate_MF_rates()
+            self.generate_pattern()
             self.SL.compute_steady_state()
             sample_input_to_GC[:,i] = self.SL.combine_SS_input()
 
         for gc in np.arange(self.nGC):
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc],0.8)
+
+    def integrate(self):
+        pass
 
 
     def display(self):
@@ -158,7 +167,7 @@ MFTYPES = 2
 net = MFGC(nMF, nGC, MFTYPES)
 
 SL = SynapseLayer(4,np.array([0,1,0,0]))
-SL.generate_MF_rates()
+SL.generate_pattern()
 SL.compute_steady_state()
 SL.combine_SS_input()
 
