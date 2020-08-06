@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 random.seed(1)
 
-DELTAT = 0.001
+DELTAT = 0.01
 NSTEPS = 1000
 Tau_fast = 20.0 / 1000.0
 Tau_slow = 2.0
