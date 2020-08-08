@@ -138,6 +138,7 @@ class SynapseLayer:
         npxq=(self.SS[:,0]*self.SS[:,2]*nmax_fast+self.SS[:,1]*self.SS[:,3]*nmax_slow)*Q0
         return(np.sum(np.reshape(npxq,[int(self.size/4),4]),1))
 
+    # this function is missing in the current github version...
     def combine_input(self):
         nmax_fast = np.array([parameters[0].NFMAX,parameters[1].NFMAX])[self.types]
         nmax_slow = np.array([parameters[0].NSMAX,parameters[1].NSMAX])[self.types]
