@@ -2,6 +2,7 @@ import numpy as np
 from numpy import random
 import networkx as nx
 from matplotlib import pyplot as plt
+import pandas as pd
 
 random.seed(1)
 
@@ -12,6 +13,53 @@ Tau_slow = 2.0           # recovery time scale of the slow pool
 TauF = 15.0/1000         # facilitation time scale
 TauG = 10.0/1000         # granule cell response time scale
 Q0 = 1                   # Quantal response
+
+FinalTime = 400
+
+## Runge-Kutta integrator
+def rk4_syn(dxdt,dpdt,t0, x0,p0, t1, n):
+    vt = np.zeros(n+1)
+    vx = np.zeros(shape=[n+1,len(x0)])
+    vp = np.zeros(shape=[n+1,len(p0)])
+    h = (t1 - t0) / float(n)
+    vt[0] = t = t0
+    vx[0] = x = x0
+    vp[0] = p = p0
+    for i in np.arange(1, n + 1):
+        k1x = h *dxdt(t, x, p)
+        k1p = h *dpdt(t, p)
+
+        k2x = h * dxdt(t + 0.5 * h, x + 0.5 * k1x, p + 0.5 * k1p)
+        k2p = h * dpdt(t + 0.5 * h, p + 0.5 * k1p)
+
+        k3x = h * dxdt(t + 0.5 * h, x + 0.5 * k2x, p + 0.5 * k2p)
+        k3p = h * dpdt(t + 0.5 * h, p + 0.5 * k2p)
+
+        k4x = h * dxdt(t + h, x + k3x, p + k3p)
+        k4p = h * dpdt(t + h, p + k3p)
+
+        vt[i] = t = t0 + i * h
+        vx[i] = x = x + (k1x + k2x + k2x + k3x + k3x + k4x) / 6
+        vp[i] = p = p + (k1p + k2p + k2p + k3p + k3p + k4p) / 6
+
+    return(vx,vp)
+
+def rk4_G(dgdt,t0, g0, t1, n):
+    vt = np.zeros(n+1)
+    vg = np.zeros(shape=[n+1,len(g0)])
+    h = (t1 - t0) / float(n)
+    vt[0] = t = t0
+    vg[0] = g = g0
+    for i in np.arange(1, n + 1):
+        k1g = h * dgdt(t, g)
+        k2g = h * dgdt(t + 0.5 * h, g + 0.5 * k1g)
+        k3g = h * dgdt(t + 0.5 * h, g + 0.5 * k2g)
+        k4g = h * dgdt(t + h, g + k3g)
+
+        vt[i] = t = t0 + i * h
+        vg[i] = g = g + (k1g + k2g + k2g + k3g + k3g + k4g) / 6
+
+    return(vg)
 
 
 class Param: #setting parameters depending on the type 
@@ -64,7 +112,7 @@ parameters=[Parameter1,Parameter2]
 
 class GCLayer:
     def __init__(self, nGC):
-        self.response = np.zeros([nGC,NSTEPS])
+        self.response = np.zeros([NSTEPS,nGC])
         self.threshold = np.zeros(nGC) #theta for each Granule cell to fire 
         self.gain = np.full(nGC,1)
         #It is useful to have layers as you can do all the calculations in their relevant layers rather than looping through each one 
@@ -75,8 +123,8 @@ class SynapseLayer:
 
         self.size = size
         # X and P are 3D arrays. The first index is the fast/slow pool index
-        self.X = np.zeros(shape=[2,size, NSTEPS]) #[two rows for fast slow pool, size is collums 4*GC for each synapse, NSTEPS is depth for each interval]
-        self.P = np.zeros(shape=[2,size, NSTEPS])
+        self.X = np.zeros(shape=[2,NSTEPS+1, size]) #[two rows for fast slow pool, NSTEPS is colums (+1??) for each interval, size is depth 4*GC for each synapse]
+        self.P = np.zeros(shape=[2, NSTEPS+1, size])
         self.nuMF = np.zeros(shape=size) #setting the array to be the size of each granule cells synapses to take the firing rates 
         self.SS = np.zeros(shape=[size,4]) #for each row of synapses there are 4 columns which are each of the steady state values 
         self.types=synapse_type_vec #setting each synapse into a vector type to do all the equations at once 
@@ -96,9 +144,21 @@ class SynapseLayer:
         #combines the ss for collumn 0 which is X_ss_f then * c2 P_ss_f * fast NSMAX + then c1: X_ss_s and c3: P_ss_s* slow NSMAX * current per one vesicle 
         #is the h (vesicle release) = [p1*n1(max)+p2*n2(max)]Q0*input freq 
         return(np.sum(np.reshape(npxq,[int(self.size/4),4]),1))
+    
+    def dxdt_fast(self,t,x,p):
+        return((1-x)/Tau_fast - p*x*(1-self.param_data_frame['pRefF'])*self.SL.nuMF)
+    def dxdt_slow(self,t,x,p):
+        return((1-x)/Tau_slow - p*x*(1-self.param_data_frame['pRefS'])*self.SL.nuMF)
+    def dpdt_fast(self,t,p):
+        return((self.param_data_frame['pS0']-p)/TauF + self.param_data_frame['pS0']*(1-p)*self.SL.nuMF)
+    def dpdt_slow(self,t,p):
+        return((self.param_data_frame['pF0']-p)/TauF + self.param_data_frame['pF0']*(1-p)*self.SL.nuMF)
+    def dgdt(self,t,g):
+        n=int(np.floor(t/FinalTime*NSTEPS))
+        return(-g/TauG + self.GL.gain*np.maximum(0,self.total_input[n]-self.GL.threshold))
 
     def integrate(self,pattern): # pattern is the array of MF firing rates
-
+    pass
 
 
 class MFGC:
@@ -150,6 +210,30 @@ class MFGC:
 
         for gc in np.arange(self.nGC):
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc],0.8)
+            
+     def set_synaptic_data_frame(self):
+        parnames = ["type","pS0","pF0","pRefS","pRefF","nuMF"]
+        self.param_data_frame = pd.DataFrame(np.zeros(shape=[self.SL.size,len(parnames)]),columns=parnames)
+
+        self.param_data_frame['type'] = self.synapse_type_vec
+        self.param_data_frame['pS0'] = np.array([parameters[0].pS0,parameters[1].pS0])[self.param_data_frame['type']]
+        self.param_data_frame['pF0'] = np.array([parameters[0].pF0,parameters[1].pF0])[self.param_data_frame['type']]
+        self.param_data_frame['pRefS'] = np.array([parameters[0].pRefS,parameters[1].pRefS])[self.param_data_frame['type']]
+        self.param_data_frame['pRefF'] = np.array([parameters[0].pRefF,parameters[1].pRefF])[self.param_data_frame['type']]
+        self.param_data_frame['nuMF'] = self.SL.nuMF
+
+    def integrate(self): # pattern is the array of MF firing rates
+        XF_init = np.full(shape=self.SL.size,fill_value=1)
+        XS_init = np.full(shape=self.SL.size,fill_value=1)
+        PF_init = self.param_data_frame['pF0']
+        PS_init = self.param_data_frame['pS0']
+
+        self.SL.X[0], self.SL.P[0] = rk4_syn(self.dxdt_fast,dpdt_fast,0, XF_init,PF_init,FinalTime,NSTEPS) 
+        self.SL.X[1], self.SL.P[1] = rk4_syn(self.dxdt_slow,dpdt_slow,0, XS_init,PS_init,FinalTime,NSTEPS) 
+        self.SL.combine_input()
+
+        ## Instead of using a zero array we should compute the steady state of G
+        self.GC.response = rk4_G(self.dgdt,0, np.zeros(self.nGC), FinalTime, NSTEPS)
 
     def integrate(self):
         pass
