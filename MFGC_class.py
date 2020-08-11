@@ -17,6 +17,7 @@ Q0 = 1                   # Quantal response
 FinalTime = 400
 
 ## Runge-Kutta integrator
+#look at the function across time steps 
 def rk4_syn(dxdt,dpdt,t0, x0,p0, t1, n):
     vt = np.zeros(n+1)
     vx = np.zeros(shape=[n+1,len(x0)])
@@ -163,8 +164,7 @@ class SynapseLayer:
         n=int(np.floor(t/FinalTime*NSTEPS))
         return(-g/TauG + self.GL.gain*np.maximum(0,self.total_input[n]-self.GL.threshold))
 
-    def integrate(self,pattern): # pattern is the array of MF firing rates
-    pass
+
 
 
 class MFGC:
@@ -240,9 +240,6 @@ class MFGC:
 
         ## Instead of using a zero array we should compute the steady state of G
         self.GC.response = rk4_G(self.dgdt,0, np.zeros(self.nGC), FinalTime, NSTEPS)
-
-    def integrate(self):
-        pass
 
 
     def display(self):
