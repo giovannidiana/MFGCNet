@@ -145,6 +145,12 @@ class SynapseLayer:
         #is the h (vesicle release) = [p1*n1(max)+p2*n2(max)]Q0*input freq 
         return(np.sum(np.reshape(npxq,[int(self.size/4),4]),1))
     
+    def combine_input(self):
+        nmax_fast = np.array([parameters[0].NFMAX,parameters[1].NFMAX])[self.types]
+        nmax_slow = np.array([parameters[0].NSMAX,parameters[1].NSMAX])[self.types]
+        npxq=(self.X[0]*self.P[0]*nmax_fast+self.X[1]*self.P[1]*nmax_slow)*Q0
+        self.total_input=npxq.reshape(-1,self.size/4,4).sum(axis=2)
+    
     def dxdt_fast(self,t,x,p):
         return((1-x)/Tau_fast - p*x*(1-self.param_data_frame['pRefF'])*self.SL.nuMF)
     def dxdt_slow(self,t,x,p):
