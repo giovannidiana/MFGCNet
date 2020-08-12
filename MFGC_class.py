@@ -210,9 +210,9 @@ class MFGC:
     def set_gain_and_threshold(self,nsamples):
         sample_input_to_GC = np.zeros(shape=[self.nGC,nsamples])
         for i in np.arange(nsamples):
-            self.generate_pattern()
-            self.SL.compute_steady_state()
-            sample_input_to_GC[:,i] = self.SL.combine_SS_input()
+            self.generate_pattern() #calls generate pattern for the gamma distrobution of nuMF
+            self.SL.compute_steady_state() #compute steady state for this type 
+            sample_input_to_GC[:,i] = self.SL.combine_SS_input() #to the sample input inputs the combines ss input from the sypapse layer in a colum 
 
         for gc in np.arange(self.nGC):
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc],0.8)
