@@ -218,7 +218,7 @@ class MFGC:
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc],0.8)
             #Compute the q-th quantile of the data along the specified axis for the row with the granule cells - only 20% of the points are in this quantile
             
-     def set_synaptic_data_frame(self):
+    def set_synaptic_data_frame(self):
         parnames = ["type","pS0","pF0","pRefS","pRefF","nuMF"]
         self.param_data_frame = pd.DataFrame(np.zeros(shape=[self.SL.size,len(parnames)]),columns=parnames)
 
