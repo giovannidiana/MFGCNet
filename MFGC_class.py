@@ -218,7 +218,7 @@ class MFGC:
             self.generate_pattern()  # calls generate pattern for the gamma distrobution of nuMF
             self.SL.compute_steady_state()  # compute steady state for this type in the synapse layer
             sample_input_to_GC[:, i] = self.SL.combine_SS_input()  #to the sample input inputs the combines ss input from the sypapse layer in a colum
-            self.GCL.gain[nsamples] = 5 / (TauG * (self.total_input - self.GCL.threshold))
+            self.GCL.gain[self.nuMF] = 5 / (TauG * (self.total_input - self.GCL.threshold))
             # steady state solution of g to be 5Hz on average when g is above threshold.
             #   the average across mossy fiber variability to be 5Hz
             #   above threshold the steady state solution is tauG•alpha•(total_input-treshold)
