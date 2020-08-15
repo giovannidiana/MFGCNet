@@ -133,6 +133,7 @@ class SynapseLayer:
         self.nuMF = np.zeros(shape=size)  # setting the array to be the size of each granule cells synapses to take the firing rates
         self.SS = np.zeros(shape=[size, 4])  # for each row of synapses there are 4 columns which are each of the steady state values
         self.types = synapse_type_vec  # setting each synapse into a vector type to do all the equations at once
+        self.total_input = ????? #issue here not knowing what to intialise it as 
 
     def compute_steady_state(self):
         ## set steady state response for type 0 MF
@@ -218,7 +219,7 @@ class MFGC:
             self.generate_pattern()  # calls generate pattern for the gamma distrobution of nuMF
             self.SL.compute_steady_state()  # compute steady state for this type in the synapse layer
             sample_input_to_GC[:, i] = self.SL.combine_SS_input()  #to the sample input inputs the combines ss input from the sypapse layer in a colum
-            self.GCL.gain[i] = 5 / (TauG * (self.total_input - self.GCL.threshold))
+            
             # steady state solution of g to be 5Hz on average when g is above threshold.
             #   the average across mossy fiber variability to be 5Hz
             #   above threshold the steady state solution is tauG•alpha•(total_input-treshold)
@@ -229,9 +230,9 @@ class MFGC:
         for gc in np.arange(self.nGC): 
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc], 0.8)
             # Compute the q-th quantile of the data along the specified axis for the row with the granule cells - only 20% of the points are in this quantile
+            self.GCL.gain[:, gc] = 5 / (TauG * (self.SL.total_input[gc, :].mean()) - np.mean(self.GCL.threshold))
 
 
-        
 
     def set_synaptic_data_frame(self):
         parnames = ["type", "pS0", "pF0", "pRefS", "pRefF", "nuMF"]
@@ -285,6 +286,6 @@ MFTYPES = 2
 net = MFGC(nMF, nGC, MFTYPES)
 
 SL = SynapseLayer(4, np.array([0, 1, 0, 0]))
-SL.generate_pattern()
+net.generate_pattern()
 SL.compute_steady_state()
 SL.combine_SS_input()
