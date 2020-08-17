@@ -1,6 +1,6 @@
 import numpy as np
-from numpy import random
 import networkx as nx
+from numpy import random
 from matplotlib import pyplot as plt
 import pandas as pd
 
@@ -15,6 +15,7 @@ TauG = 10.0 / 1000  # granule cell response time scale
 Q0 = 1  # Quantal response
 
 FinalTime = 400
+
 
 
 ## Runge-Kutta integrator
@@ -133,7 +134,8 @@ class SynapseLayer:
         self.nuMF = np.zeros(shape=size)  # setting the array to be the size of each granule cells synapses to take the firing rates
         self.SS = np.zeros(shape=[size, 4])  # for each row of synapses there are 4 columns which are each of the steady state values
         self.types = synapse_type_vec  # setting each synapse into a vector type to do all the equations at once
-        self.total_input = ????? #issue here not knowing what to intialise it as 
+
+
 
     def compute_steady_state(self):
         ## set steady state response for type 0 MF
@@ -150,11 +152,14 @@ class SynapseLayer:
         # is the h (vesicle release) = [p1*n1(max)+p2*n2(max)]Q0*input freq
         return (np.sum(np.reshape(npxq, [int(self.size / 4), 4]), 1))
 
+
     def combine_input(self):
         nmax_fast = np.array([parameters[0].NFMAX, parameters[1].NFMAX])[self.types]
         nmax_slow = np.array([parameters[0].NSMAX, parameters[1].NSMAX])[self.types]
         npxq = (self.X[0] * self.P[0] * nmax_fast + self.X[1] * self.P[1] * nmax_slow) * Q0
-        self.total_input = npxq.reshape(-1, self.size / 4, 4).sum(axis=2)
+        self.total_input = npxq.reshape(-1, self.size // 4, 4).sum(axis=2)
+        return self.total_input
+
 
     def dxdt_fast(self, t, x, p):
         return ((1 - x) / Tau_fast - p * x * (1 - self.param_data_frame['pRefF']) * self.SL.nuMF)
@@ -171,6 +176,7 @@ class SynapseLayer:
     def dgdt(self, t, g):
         n = int(np.floor(t / FinalTime * NSTEPS))
         return -g / TauG + self.GL.gain * np.maximum(0, self.total_input[n] - self.GL.threshold)
+
 
 
 class MFGC:
@@ -219,18 +225,29 @@ class MFGC:
             self.generate_pattern()  # calls generate pattern for the gamma distrobution of nuMF
             self.SL.compute_steady_state()  # compute steady state for this type in the synapse layer
             sample_input_to_GC[:, i] = self.SL.combine_SS_input()  #to the sample input inputs the combines ss input from the sypapse layer in a colum
-            
+
+
             # steady state solution of g to be 5Hz on average when g is above threshold.
             #   the average across mossy fiber variability to be 5Hz
             #   above threshold the steady state solution is tauG•alpha•(total_input-treshold)
             #   alpha=(5Hz)/(tauG•《total_input-threshold》)
             #   Where《•》denotes the average over random samples with different mossy fiber firing rates.
             #   The random samples are already generated within set_gain_and_threshold so you have to add the solution above to it.
+            #   Be careful with the loop over random samples of mossy fiber frequency,
+            #   make sure that all quantities are defined and that you calculate the appropriate average to calculate the GC gain.
 
-        for gc in np.arange(self.nGC): 
+        for gc in np.arange(self.nGC):
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc], 0.8)
             # Compute the q-th quantile of the data along the specified axis for the row with the granule cells - only 20% of the points are in this quantile
-            self.GCL.gain[:, gc] = 5 / (TauG * (self.SL.total_input[gc, :].mean()) - np.mean(self.GCL.threshold))
+            if np.mean(sample_input_to_GC[:,gc]-self.GCL.threshold[gc]) > 0:
+                self.GCL.gain[gc] = 5 / (TauG * np.mean(sample_input_to_GC[:,gc]-self.GCL.threshold[gc]))
+
+            elif np.mean(sample_input_to_GC[:,gc]-self.GCL.threshold[gc]) < 0:
+                self.GCL.gain[gc] = 0
+
+            #print(self.GCL.gain[gc])
+
+            #print(self.SL.combine_input())
 
 
 
@@ -241,8 +258,10 @@ class MFGC:
         self.param_data_frame['type'] = self.synapse_type_vec
         self.param_data_frame['pS0'] = np.array([parameters[0].pS0, parameters[1].pS0])[self.param_data_frame['type']]
         self.param_data_frame['pF0'] = np.array([parameters[0].pF0, parameters[1].pF0])[self.param_data_frame['type']]
-        self.param_data_frame['pRefS'] = np.array([parameters[0].pRefS, parameters[1].pRefS])[self.param_data_frame['type']]
-        self.param_data_frame['pRefF'] = np.array([parameters[0].pRefF, parameters[1].pRefF])[self.param_data_frame['type']]
+        self.param_data_frame['pRefS'] = np.array([parameters[0].pRefS, parameters[1].pRefS])[
+            self.param_data_frame['type']]
+        self.param_data_frame['pRefF'] = np.array([parameters[0].pRefF, parameters[1].pRefF])[
+            self.param_data_frame['type']]
         self.param_data_frame['nuMF'] = self.SL.nuMF
 
     def integrate(self):  # pattern is the array of MF firing rates
@@ -279,13 +298,14 @@ class MFGC:
         plt.show()
 
 
-nGC = 50
-nMF = 10
+nGC = 60
+nMF = 12
 MFTYPES = 2
-
 net = MFGC(nMF, nGC, MFTYPES)
-
 SL = SynapseLayer(4, np.array([0, 1, 0, 0]))
 net.generate_pattern()
 SL.compute_steady_state()
 SL.combine_SS_input()
+SL.combine_input()
+
+print(SL.combine_input())
