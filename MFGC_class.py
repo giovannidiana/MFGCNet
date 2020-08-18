@@ -227,28 +227,14 @@ class MFGC:
             sample_input_to_GC[:, i] = self.SL.combine_SS_input()  #to the sample input inputs the combines ss input from the sypapse layer in a colum
 
 
-            # steady state solution of g to be 5Hz on average when g is above threshold.
-            #   the average across mossy fiber variability to be 5Hz
-            #   above threshold the steady state solution is tauG•alpha•(total_input-treshold)
-            #   alpha=(5Hz)/(tauG•《total_input-threshold》)
-            #   Where《•》denotes the average over random samples with different mossy fiber firing rates.
-            #   The random samples are already generated within set_gain_and_threshold so you have to add the solution above to it.
-            #   Be careful with the loop over random samples of mossy fiber frequency,
-            #   make sure that all quantities are defined and that you calculate the appropriate average to calculate the GC gain.
+      
 
         for gc in np.arange(self.nGC):
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc], 0.8)
             # Compute the q-th quantile of the data along the specified axis for the row with the granule cells - only 20% of the points are in this quantile
-            if np.mean(sample_input_to_GC[:,gc]-self.GCL.threshold[gc]) > 0:
-                self.GCL.gain[gc] = 5 / (TauG * np.mean(sample_input_to_GC[:,gc]-self.GCL.threshold[gc]))
-
-            elif np.mean(sample_input_to_GC[:,gc]-self.GCL.threshold[gc]) < 0:
-                self.GCL.gain[gc] = 0
-
-            #print(self.GCL.gain[gc])
-
-            #print(self.SL.combine_input())
-
+            wAverage = np.average(sample_input_to_GC[gc,:]-self.GCL.threshold[gc], weights=(sample_input_to_GC[gc, :] > self.GCL.threshold[gc]))
+            print(wAverage)
+            self.GCL.gain[gc] = 5 / (TauG * wAverage)
 
 
     def set_synaptic_data_frame(self):
