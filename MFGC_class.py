@@ -147,7 +147,7 @@ class SynapseLayer:
     def combine_SS_input(self):
         nmax_fast = np.array([parameters[0].NFMAX, parameters[1].NFMAX])[self.types]  # creating an array for the fast pool with the max for each type
         nmax_slow = np.array([parameters[0].NSMAX, parameters[1].NSMAX])[self.types]
-        npxq = (self.SS[:, 0] * self.SS[:, 2] * nmax_fast + self.SS[:, 1] * self.SS[:, 3] * nmax_slow) * Q0
+        npxq = (self.SS[:, 0] * self.SS[:, 2] * nmax_fast + self.SS[:, 1] * self.SS[:, 3] * nmax_slow) * Q0 * self.nuMF
         # combines the ss for collumn 0 which is X_ss_f then * c2 P_ss_f * fast NSMAX + then c1: X_ss_s and c3: P_ss_s* slow NSMAX * current per one vesicle
         # is the h (vesicle release) = [p1*n1(max)+p2*n2(max)]Q0*input freq
         return (np.sum(np.reshape(npxq, [int(self.size / 4), 4]), 1))
@@ -156,7 +156,7 @@ class SynapseLayer:
     def combine_input(self):
         nmax_fast = np.array([parameters[0].NFMAX, parameters[1].NFMAX])[self.types]
         nmax_slow = np.array([parameters[0].NSMAX, parameters[1].NSMAX])[self.types]
-        npxq = (self.X[0] * self.P[0] * nmax_fast + self.X[1] * self.P[1] * nmax_slow) * Q0
+        npxq = (self.X[0] * self.P[0] * nmax_fast + self.X[1] * self.P[1] * nmax_slow) * Q0 * self.nuMF
         self.total_input = npxq.reshape(-1, self.size // 4, 4).sum(axis=2)
         return self.total_input
 
