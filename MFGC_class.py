@@ -4,9 +4,8 @@ from numpy import random
 from matplotlib import pyplot as plt
 import pandas as pd
 
-random.seed(1)
+random.seed(40)
 
-DELTAT = 0.001
 NSTEPS = 1000
 Tau_fast = 20.0 / 1000.0  # recovery time scale of the fast pool
 Tau_slow = 2.0  # recovery time scale of the slow pool
@@ -14,7 +13,7 @@ TauF = 15.0 / 1000  # facilitation time scale
 TauG = 10.0 / 1000  # granule cell response time scale
 Q0 = 1  # Quantal response
 
-FinalTime = 400
+FinalTime = 100.0 / 1000
 
 
 
@@ -119,7 +118,7 @@ class GCLayer:
     def __init__(self, nGC):
         self.response = np.zeros([NSTEPS, nGC])
         self.threshold = np.zeros(nGC)  # theta for each Granule cell to fire
-        self.gain = np.full(nGC, 1)
+        self.gain = np.full(nGC, 1.0)
         # It is useful to have layers as you can do all the calculations in their relevant layers rather than looping through each one
         # this sets a response array with the structure number of GC cells: numbmber of time interval steps
 
@@ -158,26 +157,6 @@ class SynapseLayer:
         nmax_slow = np.array([parameters[0].NSMAX, parameters[1].NSMAX])[self.types]
         npxq = (self.X[0] * self.P[0] * nmax_fast + self.X[1] * self.P[1] * nmax_slow) * Q0 * self.nuMF
         self.total_input = npxq.reshape(-1, self.size // 4, 4).sum(axis=2)
-        return self.total_input
-
-
-    def dxdt_fast(self, t, x, p):
-        return ((1 - x) / Tau_fast - p * x * (1 - self.param_data_frame['pRefF']) * self.SL.nuMF)
-
-    def dxdt_slow(self, t, x, p):
-        return ((1 - x) / Tau_slow - p * x * (1 - self.param_data_frame['pRefS']) * self.SL.nuMF)
-
-    def dpdt_fast(self, t, p):
-        return ((self.param_data_frame['pS0'] - p) / TauF + self.param_data_frame['pS0'] * (1 - p) * self.SL.nuMF)
-
-    def dpdt_slow(self, t, p):
-        return ((self.param_data_frame['pF0'] - p) / TauF + self.param_data_frame['pF0'] * (1 - p) * self.SL.nuMF)
-
-    def dgdt(self, t, g):
-        n = int(np.floor(t / FinalTime * NSTEPS))
-        return -g / TauG + self.GL.gain * np.maximum(0, self.total_input[n] - self.GL.threshold)
-
-
 
 class MFGC:
     def __init__(self, nMF, nGC, MFTYPES):
@@ -192,6 +171,23 @@ class MFGC:
         self.SL = SynapseLayer(4 * nGC,self.synapse_type_vec)  # creates the synapses with the corresponding vector for each synapse type
         self.GCL = GCLayer(nGC)  # setting it up to have these layers in parallel
         self.set_gain_and_threshold(1000)
+
+    def dxdt_fast(self, t, x, p):
+        return ((1 - x) / Tau_fast - p * x * (1 - self.param_data_frame['pRefF']) * self.SL.nuMF)
+
+    def dxdt_slow(self, t, x, p):
+        return ((1 - x) / Tau_slow - p * x * (1 - self.param_data_frame['pRefS']) * self.SL.nuMF)
+
+    def dpdt_fast(self, t, p):
+        return ((self.param_data_frame['pF0'] - p) / TauF + self.param_data_frame['pF0'] * (1 - p) * self.SL.nuMF)
+
+    def dpdt_slow(self, t, p):
+        return ((self.param_data_frame['pS0'] - p) / TauF + self.param_data_frame['pS0'] * (1 - p) * self.SL.nuMF)
+
+    def dgdt(self, t, g):
+        n = int(np.floor(t / FinalTime * NSTEPS))
+        return -g / TauG + self.GCL.gain * np.maximum(0, self.SL.total_input[n] - self.GCL.threshold)
+
 
     def generate_pattern(self):
         t0 = (self.mf_type_vec == 0)
@@ -213,7 +209,7 @@ class MFGC:
 
     def wire(self):
         for gc in np.arange(self.nGC):
-            self.connectionArray[gc] = np.random.choice(np.arange(nMF), size=4,replace=False)  # this assigns the random 4 MFs to each granule cell
+            self.connectionArray[gc] = np.random.choice(np.arange(self.nMF), size=4,replace=False)  # this assigns the random 4 MFs to each granule cell
             self.synapse_type_vec[gc * 4 + np.arange(4)] = self.mf_type_vec[self.connectionArray[gc]]  # same start of skipping over values that have already been assigned
             # for each granule cell assign the mf types from each randomly assigned MF in a row (which row not entirely sure about?)
             # in the synapse type vector add the types for each MF type
@@ -226,14 +222,11 @@ class MFGC:
             self.SL.compute_steady_state()  # compute steady state for this type in the synapse layer
             sample_input_to_GC[:, i] = self.SL.combine_SS_input()  #to the sample input inputs the combines ss input from the sypapse layer in a colum
 
-
-      
-
         for gc in np.arange(self.nGC):
             self.GCL.threshold[gc] = np.quantile(sample_input_to_GC[gc], 0.8)
             # Compute the q-th quantile of the data along the specified axis for the row with the granule cells - only 20% of the points are in this quantile
-            wAverage = np.average(sample_input_to_GC[gc,:]-self.GCL.threshold[gc], weights=(sample_input_to_GC[gc, :] > self.GCL.threshold[gc]))
-            print(wAverage)
+            wAverage = np.average(sample_input_to_GC[gc]-self.GCL.threshold[gc], weights=(sample_input_to_GC[gc] > self.GCL.threshold[gc]))
+            #print(wAverage)
             self.GCL.gain[gc] = 5 / (TauG * wAverage)
 
 
@@ -251,17 +244,33 @@ class MFGC:
         self.param_data_frame['nuMF'] = self.SL.nuMF
 
     def integrate(self):  # pattern is the array of MF firing rates
-        XF_init = np.full(shape=self.SL.size, fill_value=1)
-        XS_init = np.full(shape=self.SL.size, fill_value=1)
-        PF_init = self.param_data_frame['pF0']
-        PS_init = self.param_data_frame['pS0']
 
-        self.SL.X[0], self.SL.P[0] = rk4_syn(self.dxdt_fast, dpdt_fast, 0, XF_init, PF_init, FinalTime, NSTEPS)
-        self.SL.X[1], self.SL.P[1] = rk4_syn(self.dxdt_slow, dpdt_slow, 0, XS_init, PS_init, FinalTime, NSTEPS)
+        self.generate_pattern()
+        self.SL.compute_steady_state()
+        init_input_to_GC = self.SL.combine_SS_input()
+        G_init = TauG*self.GCL.gain*np.maximum(0,init_input_to_GC-self.GCL.threshold)
+
+        XF_init = self.SL.SS[:,0]
+        XS_init = self.SL.SS[:,1]
+        PF_init = self.SL.SS[:,2]
+        PS_init = self.SL.SS[:,3]
+
+        # Generate a second pattern
+        self.generate_pattern()
+
+        # pandas data frame used for parallel integration
+        self.set_synaptic_data_frame()
+
+        # integration of synaptic dynamics
+        self.SL.X[0], self.SL.P[0] = rk4_syn(self.dxdt_fast, self.dpdt_fast, 0, XF_init, PF_init, FinalTime, NSTEPS)
+        self.SL.X[1], self.SL.P[1] = rk4_syn(self.dxdt_slow, self.dpdt_slow, 0, XS_init, PS_init, FinalTime, NSTEPS)
         self.SL.combine_input()
 
-        ## Instead of using a zero array we should compute the steady state of G
-        self.GC.response = rk4_G(self.dgdt, 0, np.zeros(self.nGC), FinalTime, NSTEPS)
+        # integration of GC response
+        self.GCL.response = rk4_G(self.dgdt, 0, G_init, FinalTime, NSTEPS)
+
+    def write_response(self,filename):
+        np.savetxt(filename,self.GCL.response,delimiter=" ")
 
     def display(self):
         G = nx.Graph()
@@ -283,15 +292,12 @@ class MFGC:
         nx.draw(G, nx.get_node_attributes(G, 'pos'), node_size=10, alpha=0.4)
         plt.show()
 
+if(__name__ == "__main__"):
+    nGC = 500
+    nMF = 100
+    MFTYPES = 2
+    net = MFGC(nMF, nGC, MFTYPES)
+    net.integrate()
+    net.write_response("output.dat")
 
-nGC = 60
-nMF = 12
-MFTYPES = 2
-net = MFGC(nMF, nGC, MFTYPES)
-SL = SynapseLayer(4, np.array([0, 1, 0, 0]))
-net.generate_pattern()
-SL.compute_steady_state()
-SL.combine_SS_input()
-SL.combine_input()
 
-print(SL.combine_input())
