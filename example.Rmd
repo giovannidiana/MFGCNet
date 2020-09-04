@@ -2,7 +2,7 @@
 title: "Example run of MFGC class"
 author: "Giovanni Diana"
 date: "September 2, 2020"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
