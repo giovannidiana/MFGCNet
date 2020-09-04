@@ -39,6 +39,10 @@ def rk4_syn(dxdt, dpdt, t0, x0, p0, t1, n):
 
         k4x = h * dxdt(t + h, x + k3x, p + k3p)
         k4p = h * dpdt(t + h, p + k3p)
+        
+        #First calculation is based on the starting time, second and third are bases on the halfway point between starting and next time and fourth is based on the next time
+        #the second and third are more accurate which is why they are counted twice 
+        #the loop goes through each unit of time 
 
         vt[i] = t = t0 + i * h
         vx[i] = x = x + (k1x + k2x + k2x + k3x + k3x + k4x) / 6
