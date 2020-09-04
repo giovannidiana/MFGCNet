@@ -297,6 +297,8 @@ class MFGC:
         plt.show()
 
 if(__name__ == "__main__"):
+    # ' if __name__ == "main" ' block to prevent (certain) code from being run when the module is imported.
+    #__name__ is a variable defined for each script that defines whether the script is being run as the main module or it is being run as an imported module.    
     nGC = 500
     nMF = 100
     MFTYPES = 2
