@@ -26,10 +26,7 @@ Then we can import in `R` the data saved in `output.dat` for quick inspection
 
 ``` r
 r <- as.matrix(read.table("output.dat"))
-pdf("output.pdf",6,6)
 image(r[,order(apply(r,2,mean))],col=grey.colors(100),frame=FALSE,axes=FALSE)
-dev.off()
 ```
 
-    ## png 
-    ##   2
+![](example_files/figure-markdown_github/unnamed-chunk-2-1.png)
