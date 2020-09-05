@@ -8,6 +8,7 @@ output: github_document
 ```{r setup, include=FALSE}
 library(reticulate)
 use_python("/usr/bin/python3")
+# reticulate package provides an R interface to Python modules, classes, and functions. 
 ```
 
 ## Generate GC dynamics
