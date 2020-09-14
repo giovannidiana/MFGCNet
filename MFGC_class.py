@@ -256,17 +256,22 @@ class MFGC:
         self.SL.compute_steady_state()
         init_input_to_GC = self.SL.combine_SS_input()
         G_init = TauG*self.GCL.gain*np.maximum(0,init_input_to_GC-self.GCL.threshold)
-
+        #the intital state of each GC, in a vector so computes all the steady states at once 
+        
+        # define all the inital condition of the network 
         XF_init = self.SL.SS[:,0]
         XS_init = self.SL.SS[:,1]
         PF_init = self.SL.SS[:,2]
         PS_init = self.SL.SS[:,3]
 
-        # Generate a second pattern
+        # Generate a second pattern and see how the dynamics change, how do you get from the orginal steady state to the new one based on the new input 
+        #every input in the cerebellum will relax to a certain steady state, and this will be on a different time scale, they will reach steady state at different time, this is the temporal dynamics of the system
         self.generate_pattern()
 
-        # pandas data frame used for parallel integration
-        self.set_synaptic_data_frame()
+        # pandas data frame used for parallel integration, big panadas data frame that makes it possible to do the vectorised calculations
+        self.set_synaptic_data_frame() #look at this function, for each paramteter there is a row of columns which can be multiplied by a vector
+        
+        #you cant multiply different size vectors so for type you construct a new vector with the same length which is important 
 
         # integration of synaptic dynamics
         self.SL.X[0], self.SL.P[0] = rk4_syn(self.dxdt_fast, self.dpdt_fast, 0, XF_init, PF_init, FinalTime, NSTEPS)
@@ -309,4 +314,13 @@ if(__name__ == "__main__"):
     net.integrate()
     net.write_response("output.dat")
 
+    #take the network as is, feel free to test it 
+    #sanity checks using the steady state to compare them, if you comment out the second generate pattern you there should be no change
+    #giovanni will calculate an effective time scale of the relaxation of the steady state 
+        #time scale as a function of the parameters 
+        #if the tail is exponential very few are slow but if not quite a few of the nodes are slow (you want a broad distrobution of time scales (quite a few slow nodes)) 
+        #a broad distrobution means it is a generalisable 
+        
+        #every time you run the network there are new effecive time scales, each time generate a histogram, do this for many patterns 
+        #across the standard deviation of eTS (TauF), represent all these in a histogram and the standard deviation for all the plots I do, 
 
