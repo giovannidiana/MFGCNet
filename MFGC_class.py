@@ -42,6 +42,8 @@ def rk4_syn(dxdt, dpdt, t0, x0, p0, t1, n):
         
         #First calculation is based on the starting time, second and third are bases on the halfway point between starting and next time and fourth is based on the next time
         #the second and third are more accurate which is why they are counted twice 
+        #its a fourth order equation - solving it numerically over time because this can solve it for each time value
+        #solved in vectors so that it can calculate in parallel and using numpy you can combine two vectors
         #the loop goes through each unit of time 
 
         vt[i] = t = t0 + i * h
@@ -248,6 +250,7 @@ class MFGC:
         self.param_data_frame['nuMF'] = self.SL.nuMF
 
     def integrate(self):  # pattern is the array of MF firing rates
+        #read through this to understand the logic of this 
 
         self.generate_pattern()
         self.SL.compute_steady_state()
